@@ -1,0 +1,18 @@
+There are going to be messages that exchange between different parties. You are
+going to have two parties Users and the Server. There communication can be modeled
+as:
+
+    1. User --> Server
+        ++ Login / Logoff commands (focus of Ep2)
+        ++ status
+
+    2. Server --> User
+        ++ online / offline messages: users are notified when new user logs in
+
+    3. User --> User:
+        ++ direct messages
+        ++ broadcast messages to all users
+
+Commands:
+    ++ login <user> <password>
+    ++ logoff
