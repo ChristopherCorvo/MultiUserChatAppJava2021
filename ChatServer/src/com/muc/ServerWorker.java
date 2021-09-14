@@ -1,8 +1,11 @@
 package com.muc;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.io.*;
 import java.net.Socket;
 import java.util.Date;
+import java.util.List;
 
 /*
 * By extending the Thread abstract class we make it so that when ever we make an instance of the ServerWorker
@@ -13,10 +16,14 @@ public class ServerWorker extends Thread
 {
     // Members:
     private final Socket clientSocket;
+    private final Server server;
+    private String login = null;
+    private OutputStream outputStream;
 
     // Constructor:
-    public ServerWorker(Socket clientSocket)
+    public ServerWorker(Server server, Socket clientSocket)
     {
+        this.server = server;
         this.clientSocket = clientSocket;
     }
 
@@ -59,22 +66,51 @@ public class ServerWorker extends Thread
     {
         // setting up biDirectional communication
         InputStream inputStream = this.clientSocket.getInputStream();
-        OutputStream outputStream = this.clientSocket.getOutputStream();
+        this.outputStream = this.clientSocket.getOutputStream();
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
         String line;
         // In this while loop the server is reading commands from the client
         while((line = reader.readLine()) != null)
         {
-            String[] tokens = StringUtils
-            if("quit".equalsIgnoreCase(line))
+            // split my lines into individual tokens
+            String[] tokens = StringUtils.split(line);
+            if (tokens != null && tokens.length > 0)
             {
-                break;
+                String cmd = tokens[0];
+                if ("logoff".equalsIgnoreCase(cmd) || "quit".equalsIgnoreCase(cmd))
+                {
+                    handleLogoff();
+                    break;
+                }
+                else if("login".equalsIgnoreCase(cmd))
+                {
+                    handleLogin(outputStream, tokens);
+                }
+                else
+                {
+                    String msg = "You typed: " + cmd + "\n";
+                    outputStream.write(msg.getBytes());
+                }
             }
-            String msg = "You typed: " + line + "\n";
-            outputStream.write(msg.getBytes());
         }
         this.clientSocket.close();
+    }
+
+    private void handleLogoff() throws IOException
+    {
+        clientSocket.close();
+
+        List<ServerWorker> workerList = server.getWorkerList();
+        // send other online users current users status
+        String offlineMsg = "offline " + login + "\n";
+        for (ServerWorker worker : workerList)
+        {
+            if(!login.equals(worker.getLogin()) )
+            {
+                worker.send(offlineMsg);
+            }
+        }
     }
 
     // Every thread has a run method.
@@ -90,6 +126,71 @@ public class ServerWorker extends Thread
         } catch (InterruptedException e)
         {
             e.printStackTrace();
+        }
+    }
+
+    public String getLogin()
+    {
+        return login;
+    }
+
+
+    private void handleLogin(OutputStream outputStream, String[] tokens) throws IOException
+    {
+        if(tokens.length == 3)
+        {
+            String login = tokens[1];
+            String password = tokens[2];
+
+            if((login.equals("guest") && password.equals("guest")) ||
+                (login.equals("jim") && password.equals("jim")) ||
+                (login.equals("chris") && password.equals("chris")) )
+            {
+                String msg = "ok login\n";
+                outputStream.write(msg.getBytes());
+                this.login = login;
+                System.out.println("User logged in successfully: " + login);
+
+
+                List<ServerWorker> workerList = server.getWorkerList();
+                // Sends current user all other online logins
+                for (ServerWorker worker : workerList)
+                {
+                    // This conditional statement prevents you from sending your own presence to yourself
+                    if(worker.getLogin() != null)
+                    {
+                        if(!login.equals(worker.getLogin()) )
+                        {
+                            String msg2 = "online " + worker.getLogin() + "\n";
+                            send(msg2);
+                        }
+                    }
+                }
+
+                // send other online users current users status
+                String onlineMsg = "online " + login + "\n";
+                for (ServerWorker worker : workerList)
+                {
+                    if(!login.equals(worker.getLogin()) )
+                    {
+                        worker.send(onlineMsg);
+                    }
+                }
+            }
+            else
+            {
+                String msg = "error login\n";
+                outputStream.write(msg.getBytes());
+            }
+        }
+    }
+
+    private void send(String msg) throws IOException
+    {
+        if(login != null)
+        {
+            // will access the output stream of the current client socket and then send a message to the users
+            outputStream.write(msg.getBytes());
         }
     }
 }
