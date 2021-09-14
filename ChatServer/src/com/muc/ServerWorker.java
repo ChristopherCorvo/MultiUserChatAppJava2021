@@ -63,8 +63,10 @@ public class ServerWorker extends Thread
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
         String line;
+        // In this while loop the server is reading commands from the client
         while((line = reader.readLine()) != null)
         {
+            String[] tokens = StringUtils
             if("quit".equalsIgnoreCase(line))
             {
                 break;
