@@ -3,16 +3,26 @@ going to have two parties Users and the Server. There communication can be model
 as:
 
     1. User --> Server
-        ++ Login / Logoff commands (focus of Ep2)
+        ++ Login / Logoff commands (focus of Part2)
         ++ status
 
     2. Server --> User
         ++ online / offline messages: users are notified when new user logs in
 
     3. User --> User:
-        ++ direct messages
-        ++ broadcast messages to all users
+        ++ direct messages (Focus of Part3)
+        ++ broadcast/group messages to all users (Focus of Part3) #
 
 Commands:
     ++ login <user> <password>
     ++ logoff
+    ++ msg <user> text....
+        Example:
+            guest: "msg jim Hello World" <-- sent
+            jim: "msg guest Hello World" <-- received
+
+    #topic <-- chatroom
+        join #topic
+        leave #topic
+        send: msg #topic text.....
+        recv: msg #topic:<login> text....

@@ -5,6 +5,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.*;
 import java.net.Socket;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 
 /*
@@ -19,6 +20,7 @@ public class ServerWorker extends Thread
     private final Server server;
     private String login = null;
     private OutputStream outputStream;
+    private HashSet<String> topicSet = new HashSet<>();
 
     // Constructor:
     public ServerWorker(Server server, Socket clientSocket)
@@ -77,7 +79,7 @@ public class ServerWorker extends Thread
             String[] tokens = StringUtils.split(line);
             if (tokens != null && tokens.length > 0)
             {
-                String cmd = tokens[0];
+                String cmd = tokens[0]; // token header
                 if ("logoff".equalsIgnoreCase(cmd) || "quit".equalsIgnoreCase(cmd))
                 {
                     handleLogoff();
@@ -86,6 +88,23 @@ public class ServerWorker extends Thread
                 else if("login".equalsIgnoreCase(cmd))
                 {
                     handleLogin(outputStream, tokens);
+                }
+                else if("msg".equalsIgnoreCase(cmd))
+                {
+                    String[] tokensMsg = StringUtils.split(line, null, 3);
+                    handleMessage(tokensMsg);
+                }
+                else if("join".equalsIgnoreCase(cmd))
+                {
+                    String msg = "Type Message to group:" + "\n";
+                    outputStream.write(msg.getBytes());
+                    handleJoin(tokens);
+                }
+                else if("leave".equalsIgnoreCase(cmd))
+                {
+                    String msg = "You have left " + tokens[1];
+                    outputStream.write(msg.getBytes());
+                    handleLeave(tokens);
                 }
                 else
                 {
@@ -97,18 +116,62 @@ public class ServerWorker extends Thread
         this.clientSocket.close();
     }
 
-    private void handleLogoff() throws IOException
+    private void handleLeave(String[] tokens)
     {
-        clientSocket.close();
+        if(tokens.length > 1)
+        {
+            String topic = tokens[1];
+            topicSet.remove(topic);
+        }
+    }
+
+    public boolean isMemberOfTopic(String topic)
+    {
+        // this method is checking if the user is a member of the given topic
+        return topicSet.contains(topic);
+    }
+    private void handleJoin(String[] tokens)
+    {
+        // meaning its a token cmd + plus a topic to join
+        if(tokens.length > 1)
+        {
+            String topic = tokens[1];
+            /*
+            *  State: We are going to store the membership of the user to a topic inside this
+            *  serviceWorker instance.
+            *
+            */
+            topicSet.add(topic);
+        }
+    }
+
+    // format: "msg" "login" msg...
+    private void handleMessage(String[] tokens) throws IOException
+    {
+        //Server Side
+        String sendTo = tokens[1];
+        String body = tokens[2];
+
+        boolean isTopic = sendTo.charAt(0) == '#';
 
         List<ServerWorker> workerList = server.getWorkerList();
-        // send other online users current users status
-        String offlineMsg = "offline " + login + "\n";
-        for (ServerWorker worker : workerList)
+        for(ServerWorker worker : workerList)
         {
-            if(!login.equals(worker.getLogin()) )
+            if(isTopic)
             {
-                worker.send(offlineMsg);
+                if (worker.isMemberOfTopic(sendTo))
+                {
+                    String outMsg = "msg " + sendTo + " " + login + " " + body + "\n";
+                    worker.send(outMsg);
+                }
+            }
+            else
+            {
+                if(sendTo.equalsIgnoreCase(worker.getLogin()))
+                {
+                    String outMsg = "msg " + login + " " + body + "\n";
+                    worker.send(outMsg);
+                }
             }
         }
     }
@@ -183,6 +246,25 @@ public class ServerWorker extends Thread
                 outputStream.write(msg.getBytes());
             }
         }
+    }
+
+    private void handleLogoff() throws IOException
+    {
+        // removes user from workerList when they log off the system.
+        server.removeWorker(this);
+
+        List<ServerWorker> workerList = server.getWorkerList();
+        // send other online users current users status
+        String offlineMsg = "offline " + login + "\n";
+        for (ServerWorker worker : workerList)
+        {
+            if(!login.equals(worker.getLogin()) )
+            {
+                worker.send(offlineMsg);
+            }
+        }
+
+        clientSocket.close();
     }
 
     private void send(String msg) throws IOException
