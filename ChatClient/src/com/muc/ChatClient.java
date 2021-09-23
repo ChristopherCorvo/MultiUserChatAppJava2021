@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.io.*;
 import java.net.Socket;
+import java.sql.SQLOutput;
 import java.util.ArrayList;
 
 // This class will be the interface to the server
@@ -48,6 +49,17 @@ public class ChatClient
                 System.out.println("OFFLINE: " + login);
             }
         });
+
+        client.addMessageListener(new MessageListener()
+        {
+            @Override
+            public void onMessage(
+                String fromLogin,
+                String msgBody)
+            {
+                System.out.println("You got a message from " + fromLogin + " ===>" + msgBody);
+            }
+        });
         // after we make an instance of the client we then want to connect --> in order to make a
         // connection we need to make a socket connection.
         if(!client.connect())
@@ -68,17 +80,17 @@ public class ChatClient
                 System.out.println("Login failed ");
             }
 
-            //client.logoff();
+            // client.logoff();
         }
     }
 
-    private void msg(String sendTo, String msgBody) throws IOException
+    public void msg(String sendTo, String msgBody) throws IOException
     {
         String cmd = "msg " + sendTo + " " + msgBody + "\n";
         serverOut.write(cmd.getBytes());
     }
 
-    private boolean login(String login, String password) throws IOException
+    public boolean login(String login, String password) throws IOException
     {
         String cmd = "login " + login + " " + password + "\n";
         serverOut.write(cmd.getBytes());
@@ -97,7 +109,7 @@ public class ChatClient
         }
     }
 
-    private void  logoff() throws IOException
+    public void  logoff() throws IOException
     {
         String cmd = "logoff\n";
         serverOut.write(cmd.getBytes());
@@ -197,7 +209,7 @@ public class ChatClient
         }
     }
 
-    private boolean connect()
+    public boolean connect()
     {
         try
         {
